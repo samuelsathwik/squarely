@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Squarely: measure the room, walk through it in 3D</title>
+<meta name="description" content="Squarely turns a site visit into floor plans, elevations and a 3D walkthrough, on your Android phone. Built for interior designers and architects.">
+<meta property="og:title" content="Squarely: measure the room, walk through it in 3D">
+<meta property="og:description" content="Floor plans, elevations and a 3D walkthrough from a site visit, on your Android phone.">
+<meta property="og:image" content="img/house-evening.jpg">
+<meta name="theme-color" content="#1F4E5F">
+<link rel="icon" href="img/squarely-icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<style>
+  /* Squarely brand: teal #1F4E5F, amber #F2B84B (docs/brand). One accent: amber.
+     Radii: controls are pills, cards 22px, the big panels 28px. Light page, one deep-teal band. */
+  :root {
+    --paper: #F6F7F5;
+    --white: #FFFFFF;
+    --ink: #14232B;
+    --ink-2: #4B5B63;
+    --ink-3: #7A8A91;
+    --line: #DFE5E4;
+    --teal: #1F4E5F;
+    --teal-2: #3D7A8E;
+    --deep: #102A33;
+    --amber: #F2B84B;
+    --amber-tint: #FDF4E1;
+    --mist: #E9F1F2;
+    --shadow: 0 30px 70px -20px rgb(16 42 51 / .28), 0 8px 20px -10px rgb(16 42 51 / .18);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 400 17px/1.6 "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; height: auto; display: block; }
+  a { color: inherit; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding-inline: 24px; }
+  h1, h2, h3 { font-weight: 600; letter-spacing: -0.035em; margin: 0; text-wrap: balance; }
+  h2 { font-size: clamp(34px, 4.6vw, 58px); line-height: 1.04; }
+  h2 .soft, h1 .soft { color: var(--teal-2); }
+  .lead { color: var(--ink-2); font-size: 18px; max-width: 52ch; margin: 14px 0 0; }
+
+  /* Buttons: dark pill with a round amber arrow chip */
+  .btn {
+    display: inline-flex; align-items: center; gap: 14px; white-space: nowrap;
+    background: var(--deep); color: #fff; text-decoration: none; border: 0; cursor: pointer;
+    font: 600 16px/1 "Plus Jakarta Sans", system-ui, sans-serif;
+    padding: 7px 7px 7px 24px; border-radius: 999px;
+    transition: transform .25s cubic-bezier(.16,1,.3,1), background .2s;
+  }
+  .btn .chip { width: 40px; height: 40px; border-radius: 50%; background: var(--amber); color: var(--deep); display: grid; place-items: center; font-size: 18px; transition: transform .3s cubic-bezier(.16,1,.3,1); }
+  .btn:hover { background: var(--teal); }
+  .btn:hover .chip { transform: rotate(-45deg); }
+  .btn:active { transform: scale(.98); }
+  .btn.small { padding: 5px 5px 5px 18px; font-size: 15px; gap: 10px; }
+  .btn.small .chip { width: 32px; height: 32px; font-size: 15px; }
+  .btn.light { background: #fff; color: var(--ink); }
+  .btn.light:hover { background: var(--amber-tint); }
+  .link { font-weight: 600; text-decoration: none; border-bottom: 1.5px solid currentColor; padding-bottom: 1px; }
+  :focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
+
+  /* Navigation */
+  .nav { position: sticky; top: 0; z-index: 20; background: rgb(246 247 245 / .82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .nav .wrap { height: 72px; display: flex; align-items: center; gap: 32px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 21px; letter-spacing: -0.02em; color: var(--teal); }
+  .brand svg { width: 34px; height: 34px; }
+  .nav-links { display: flex; gap: 28px; margin: 0 auto; }
+  .nav-links a { text-decoration: none; font-size: 15px; font-weight: 500; color: var(--ink-2); }
+  .nav-links a:hover { color: var(--ink); }
+  @media (max-width: 880px) { .nav-links { display: none; } .nav .btn { margin-left: auto; } }
+
+  /* Hero: words left, a collage of three tilted cards right, on an architect's grid */
+  .hero { position: relative; overflow: hidden; padding: 48px 0 40px; }
+  .hero::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgb(31 78 95 / .06) 1px, transparent 1px), linear-gradient(90deg, rgb(31 78 95 / .06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse 70% 80% at 72% 40%, #000 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 80% at 72% 40%, #000 30%, transparent 75%);
+  }
+  .hero::after { content: ""; position: absolute; left: -10%; bottom: -30%; width: 55%; height: 80%; background: radial-gradient(circle, rgb(242 184 75 / .22), transparent 65%); pointer-events: none; }
+  .hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1.05fr; gap: 40px; align-items: center; min-height: 600px; }
+  .toggle { display: inline-flex; background: var(--white); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 2px; }
+  .toggle button { border: 0; background: transparent; font: 500 14px/1 "Plus Jakarta Sans", sans-serif; color: var(--ink-2); padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+  .toggle button[aria-pressed="true"] { background: var(--mist); color: var(--ink); font-weight: 600; }
+  h1 { font-size: clamp(38px, 4.3vw, 58px); line-height: 1.0; letter-spacing: -0.045em; margin: 26px 0 22px; }
+  .hero p.sub { font-size: 19px; color: var(--ink-2); max-width: 36ch; margin: 0 0 32px; min-height: 3.2em; }
+  .collage { position: relative; height: 560px; }
+  .card { position: absolute; background: var(--white); border-radius: 18px; padding: 10px 10px 12px; box-shadow: var(--shadow); }
+  .card img { border-radius: 10px; }
+  .card span { display: block; font-size: 14px; font-weight: 600; color: var(--ink); padding: 10px 4px 0; }
+  .c-plan { width: 46%; left: 2%; top: 2%; transform: rotate(-4deg); }
+  .c-plan img { aspect-ratio: 1 / 1; object-fit: cover; object-position: center 46%; background: #fff; }
+  .c-3d { width: 52%; right: 0; top: 20%; transform: rotate(3deg); z-index: 2; }
+  .c-3d img { aspect-ratio: 1 / 1; object-fit: cover; }
+  .c-3d span { text-align: right; }
+  .c-walk { width: 40%; left: 16%; bottom: 0; transform: rotate(-2deg); z-index: 3; }
+  .c-walk img { aspect-ratio: 6 / 5; object-fit: cover; }
+  .note { position: absolute; right: 6%; top: 3%; font: 600 26px/1 Caveat, cursive; color: var(--teal-2); transform: rotate(-4deg); display: flex; align-items: center; gap: 6px; }
+  .note i { font-size: 28px; transform: rotate(70deg); }
+  @media (max-width: 960px) {
+    .hero .wrap { grid-template-columns: 1fr; min-height: 0; }
+    .collage { height: 470px; max-width: 520px; width: 100%; margin: 8px auto 0; }
+  }
+  @media (max-width: 480px) { h1 { font-size: 32px; } .collage { height: 380px; } .card span { font-size: 12px; padding-top: 6px; } .note { font-size: 21px; } }
+
+  /* What it makes: one strip of plain facts */
+  .facts { padding: 8px 0 72px; }
+  .facts .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 36px; color: var(--ink-2); font-weight: 500; font-size: 15px; }
+  .facts .row div { display: flex; align-items: center; gap: 8px; }
+  .facts i { color: var(--teal); font-size: 20px; }
+  .facts .kicker { text-align: center; font-size: 14px; color: var(--ink-3); margin-bottom: 16px; }
+
+  section { padding: 104px 0; }
+
+  /* Steps: one large panel, three tabs with progress bars, auto-advancing */
+  .steps-head { text-align: center; }
+  .steps-head .lead { margin-inline: auto; }
+  .panel { margin-top: 48px; background: var(--white); border: 1px solid var(--line); border-radius: 28px; box-shadow: 0 30px 60px -40px rgb(16 42 51 / .35); display: grid; grid-template-columns: 0.9fr 1.1fr; overflow: hidden; min-height: 520px; }
+  .tabs { display: flex; flex-direction: column; padding: 40px; gap: 6px; }
+  .tab { text-align: left; border: 0; background: transparent; padding: 20px 20px 18px; border-radius: 16px; cursor: pointer; font: inherit; color: var(--ink-3); position: relative; }
+  .tab h3 { font-size: 22px; color: inherit; transition: color .2s; }
+  .tab p { margin: 6px 0 12px; font-size: 15.5px; display: none; color: var(--ink-2); }
+  .tab .bar { height: 3px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .tab .bar b { display: block; height: 100%; width: 0; background: var(--amber); }
+  .tab[aria-selected="true"] { background: var(--paper); color: var(--ink); }
+  .tab[aria-selected="true"] p { display: block; }
+  .stage { position: relative; background: linear-gradient(160deg, var(--mist), #F3F6F1); display: grid; place-items: center; padding: 40px; }
+  .stage figure { margin: 0; display: none; width: 100%; }
+  .stage figure.on { display: block; animation: fade .6s cubic-bezier(.16,1,.3,1); }
+  .stage .phone { width: min(300px, 70%); margin: 0 auto; border-radius: 34px; background: #0E1E25; padding: 9px; box-shadow: var(--shadow); }
+  .stage .phone img { border-radius: 26px; aspect-ratio: 720 / 1452; object-fit: cover; }
+  .stage .sheet { background: #fff; border-radius: 14px; box-shadow: var(--shadow); padding: 14px; max-width: 520px; margin: 0 auto; }
+  @keyframes fade { from { opacity: 0; transform: translateY(10px); } }
+  @media (max-width: 900px) { .panel { grid-template-columns: 1fr; } .tabs { padding: 20px; } .stage { padding: 28px 20px; } }
+
+  /* Gallery: one horizontal row of tall cards on a warm tint */
+  .tint { background: var(--amber-tint); }
+  .gal-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+  .arrows { display: flex; gap: 10px; }
+  .arrows button { width: 48px; height: 48px; border-radius: 50%; border: 1px solid #E9D9B4; background: #fff; color: var(--ink); cursor: pointer; font-size: 18px; display: grid; place-items: center; }
+  .arrows button.dark { background: var(--deep); color: #fff; border-color: var(--deep); }
+  .gallery { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 31%); gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; margin-top: 40px; padding-bottom: 8px; scrollbar-width: none; }
+  .gallery::-webkit-scrollbar { display: none; }
+  .gallery figure { margin: 0; scroll-snap-align: start; }
+  .gallery .ph { border-radius: 22px; overflow: hidden; aspect-ratio: 4 / 5; background: #fff; }
+  .gallery .ph img { width: 100%; height: 100%; object-fit: cover; transition: transform .8s cubic-bezier(.16,1,.3,1); }
+  .gallery figure:hover img { transform: scale(1.03); }
+  .gallery .ph.contain img { object-fit: contain; padding: 18px; background: #fff; }
+  .gallery figcaption { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; margin-top: 14px; }
+  .progress { height: 3px; background: #EADDBE; border-radius: 3px; margin-top: 28px; max-width: 440px; overflow: hidden; }
+  .progress b { display: block; height: 100%; width: 30%; background: var(--amber); transition: width .2s; }
+  @media (max-width: 700px) { .gallery { grid-auto-columns: 82%; } .gal-head { align-items: start; flex-direction: column; } }
+
+  /* Dark band: where the drawings go */
+  .dark { background: radial-gradient(ellipse 60% 70% at 85% 0%, #24596B 0%, transparent 60%), var(--deep); color: #EAF1F2; }
+  .dark h2 .soft { color: #8FB9C6; }
+  .dark .lead { color: #B8CBD0; }
+  .dark-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; }
+  .pill-link { display: inline-flex; align-items: center; gap: 12px; background: rgb(255 255 255 / .06); border: 1px solid rgb(255 255 255 / .12); border-radius: 999px; padding: 6px; text-decoration: none; color: #fff; font-weight: 600; font-size: 15px; }
+  .pill-link img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+  .pill-link .chip { width: 36px; height: 36px; border-radius: 50%; background: var(--amber); color: var(--deep); display: grid; place-items: center; }
+  .uses { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 48px; }
+  .uses figure { margin: 0; }
+  .uses .ph { border-radius: 20px; overflow: hidden; aspect-ratio: 4 / 5; background: #183A46; }
+  .uses .ph img { width: 100%; height: 100%; object-fit: cover; object-position: center 45%; }
+  .uses .ph.contain { background: #fff; }
+  .uses .ph.contain img { object-fit: contain; padding: 14px; }
+  .uses h3 { font-size: 19px; margin-top: 16px; color: #fff; letter-spacing: -0.02em; }
+  .uses p { margin: 4px 0 0; color: #A9C0C6; font-size: 15px; }
+  @media (max-width: 900px) { .uses { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 520px) { .uses { grid-template-columns: 1fr; } }
+
+  /* Principle: one sentence, large */
+  .principle { text-align: center; padding: 120px 0 104px; }
+  .principle blockquote { margin: 0 auto; max-width: 20ch; font-size: clamp(32px, 4.4vw, 54px); line-height: 1.12; letter-spacing: -0.035em; font-weight: 500; }
+  .principle p { color: var(--ink-3); margin: 22px 0 0; font-size: 16px; }
+
+  /* The drawing, on a sheet with a title block */
+  .sheet-wrap { display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: center; }
+  .drawing { background: #fff; border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 30px 60px -40px rgb(16 42 51 / .4); display: grid; grid-template-columns: 1fr 180px; overflow: hidden; }
+  .drawing .art { padding: 24px; border-right: 1.5px solid var(--ink); }
+  .titleblock { display: grid; grid-auto-rows: min-content; font-size: 12px; }
+  .titleblock div { border-bottom: 1.5px solid var(--ink); padding: 10px 12px; }
+  .titleblock div:last-child { border-bottom: 0; }
+  .titleblock small { display: block; color: var(--ink-3); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .titleblock strong { font-size: 14px; font-weight: 600; }
+  .titleblock .sheetno { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .checks { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 14px; }
+  .checks li { display: flex; gap: 12px; }
+  .checks i { color: var(--teal); font-size: 22px; flex: none; margin-top: 1px; }
+  @media (max-width: 900px) { .sheet-wrap { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) { .drawing { grid-template-columns: 1fr; } .drawing .art { border-right: 0; border-bottom: 1.5px solid var(--ink); } .titleblock { grid-template-columns: 1fr 1fr; } .titleblock div:nth-child(odd) { border-right: 1.5px solid var(--ink); } }
+
+  /* Founding designers and the form */
+  .founding { background: var(--white); border: 1px solid var(--line); border-radius: 28px; padding: 56px; display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
+  .gets { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 16px; }
+  .gets li { display: flex; gap: 14px; align-items: flex-start; font-size: 17px; }
+  .gets .dot { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--amber-tint); color: #8A5A00; display: grid; place-items: center; font-size: 17px; }
+  .form { background: var(--paper); border-radius: 22px; padding: 32px; display: grid; gap: 18px; align-self: start; }
+  .form h3 { font-size: 24px; }
+  .field { display: grid; gap: 7px; }
+  .field label { font-size: 15px; font-weight: 600; }
+  .field .help { font-size: 13.5px; color: var(--ink-2); }
+  input, select { font: 400 16px/1.3 "Plus Jakarta Sans", system-ui, sans-serif; color: var(--ink); background: #fff; border: 1.5px solid var(--line); border-radius: 14px; padding: 14px 16px; width: 100%; }
+  input::placeholder { color: #6E7E85; }
+  .form .btn { justify-content: space-between; width: 100%; }
+  .status { font-size: 15px; margin: 0; min-height: 1.4em; }
+  .status.ok { color: #2E7D32; font-weight: 600; }
+  .status.err { color: #B3261E; }
+  @media (max-width: 900px) { .founding { grid-template-columns: 1fr; padding: 28px 20px; gap: 28px; } .form { padding: 22px; } }
+
+  /* Questions: heading left, cards right */
+  .faq-wrap { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 56px; align-items: start; }
+  .faq { display: grid; gap: 12px; }
+  details { background: var(--white); border-radius: 18px; box-shadow: 0 6px 20px -14px rgb(16 42 51 / .4); }
+  summary { cursor: pointer; list-style: none; padding: 20px 22px; font-weight: 600; font-size: 17px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary .pm { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--amber-tint); color: #8A5A00; display: grid; place-items: center; font-size: 14px; transition: transform .25s, background .2s; }
+  details[open] summary .pm { transform: rotate(45deg); background: var(--amber); color: var(--deep); }
+  details p { margin: 0; padding: 0 22px 20px; color: var(--ink-2); }
+  @media (max-width: 900px) { .faq-wrap { grid-template-columns: 1fr; gap: 28px; } }
+
+  /* The last word: a full image with the headline on it */
+  .finale { position: relative; border-radius: 28px; overflow: hidden; min-height: 460px; display: flex; align-items: end; }
+  .finale img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 40%; }
+  .finale::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, rgb(10 26 32 / .78)); }
+  .finale .inner { position: relative; z-index: 1; padding: 48px; color: #fff; display: grid; gap: 22px; }
+  .finale h2 { font-size: clamp(40px, 6vw, 78px); }
+  .finale .row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; font-size: 14.5px; color: #D5E2E5; }
+  @media (max-width: 600px) { .finale .inner { padding: 26px; } .finale { min-height: 380px; } }
+
+  footer { background: var(--deep); color: #CFDDE0; margin-top: 96px; padding: 72px 0 40px; }
+  .foot { display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; }
+  .foot h2 { color: #fff; font-size: clamp(30px, 3.4vw, 44px); }
+  .foot h2 .soft { color: var(--amber); }
+  .cols { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; font-size: 15px; }
+  .cols h4 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: #8FB0B9; }
+  .cols a { display: block; text-decoration: none; padding: 4px 0; color: #EAF1F2; }
+  .cols a:hover { color: var(--amber); }
+  .legal { margin-top: 56px; padding-top: 24px; border-top: 1px solid rgb(255 255 255 / .1); font-size: 14px; color: #8FB0B9; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  @media (max-width: 760px) { .foot { grid-template-columns: 1fr; } }
+
+  /* Motion: things ease in as they arrive; none of it for people who turned motion off. */
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { opacity: 0; transform: translateY(22px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1); }
+    .reveal.in { opacity: 1; transform: none; }
+    .card { animation: drop 1s cubic-bezier(.16,1,.3,1) both; }
+    .c-3d { animation-delay: .12s; } .c-walk { animation-delay: .24s; }
+    .note { animation: drop 1s cubic-bezier(.16,1,.3,1) .5s both; }
+    @keyframes drop { from { opacity: 0; translate: 0 26px; } }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .stage figure.on { animation: none; } }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Squarely home">
+      <svg viewBox="22 22 64 64" aria-hidden="true" fill="none" stroke-linecap="butt" stroke-linejoin="miter">
+        <path d="M60,78 L78,78 L78,30 L30,30 L30,78 L47,78" stroke="#1F4E5F" stroke-width="6.5"/>
+        <path d="M62.75,33.25 L62.75,45.25 L74.75,45.25" stroke="#F2B84B" stroke-width="4.5"/>
+      </svg>
+      Squarely
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#drawings">Drawings</a>
+      <a href="#founding">Founding designers</a>
+      <a href="#questions">Questions</a>
+    </nav>
+    <a class="btn small" href="#join">Join the waitlist <span class="chip"><i class="ph-bold ph-arrow-up-right"></i></span></a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero" style="padding-top:48px">
+    <div class="wrap">
+      <div>
+        <div class="toggle" role="group" aria-label="Where you start">
+          <button type="button" aria-pressed="true" data-start="site">I'm on site</button>
+          <button type="button" aria-pressed="false" data-start="pdf">I have a PDF plan</button>
+        </div>
+        <h1>Measure the room.<br><span class="soft">Walk through it in 3D.</span></h1>
+        <p class="sub" id="hero-sub">Measure wall by wall on your phone. Leave the site with the floor plan, elevations and a 3D walkthrough.</p>
+        <a class="btn" href="#join">Join the waitlist <span class="chip"><i class="ph-bold ph-arrow-up-right"></i></span></a>
+      </div>
+      <div class="collage" aria-label="From measured plan to 3D">
+        <figure class="card c-plan" style="margin:0"><img id="hero-first" src="img/app-plan.jpg" width="720" height="1452" alt="A two-bedroom home drawn in Squarely, furnished room by room"><span id="hero-first-cap">Measure the site</span></figure>
+        <figure class="card c-3d" style="margin:0"><img src="img/house-day.jpg" width="900" height="900" alt="The same home in 3D, seen from above with the roof off"><span>See it in 3D</span></figure>
+        <figure class="card c-walk" style="margin:0"><img src="img/living-day.jpg" width="960" height="800" alt="Walking through the living room in 3D"><span>Walk your client through it</span></figure>
+        <div class="note" aria-hidden="true">all on your phone <i class="ph ph-arrow-bend-down-right"></i></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="facts">
+    <div class="wrap">
+      <div class="kicker">Made for interior designers, architects and site teams</div>
+      <div class="row">
+        <div><i class="ph ph-ruler"></i>mm, cm, feet and inches</div>
+        <div><i class="ph ph-wifi-slash"></i>Works with no signal</div>
+        <div><i class="ph ph-file-pdf"></i>PDF drawings</div>
+        <div><i class="ph ph-compass-tool"></i>DXF for AutoCAD</div>
+        <div><i class="ph ph-lock-simple"></i>Projects stay on your phone</div>
+      </div>
+    </div>
+  </div>
+
+  <section id="how" style="padding-top:40px">
+    <div class="wrap">
+      <div class="steps-head reveal">
+        <h2>Tape measure in.<br><span class="soft">Drawings out.</span></h2>
+      </div>
+      <div class="panel reveal">
+        <div class="tabs" role="tablist" aria-label="How it works">
+          <button class="tab" role="tab" aria-selected="true" data-i="0">
+            <h3>Measure each room</h3>
+            <p>Walk round, type each wall's length, add doors, windows, beams and columns. Rooms snap together into one plan.</p>
+            <div class="bar"><b></b></div>
+          </button>
+          <button class="tab" role="tab" aria-selected="false" data-i="1">
+            <h3>Get the drawings</h3>
+            <p>A dimensioned floor plan, every wall's elevation and a client report, as PDF or DXF.</p>
+            <div class="bar"><b></b></div>
+          </button>
+          <button class="tab" role="tab" aria-selected="false" data-i="2">
+            <h3>Furnish and walk through</h3>
+            <p>Place furniture at real sizes, then step inside in 3D, by day or with the evening lights on.</p>
+            <div class="bar"><b></b></div>
+          </button>
+        </div>
+        <div class="stage">
+          <figure class="on"><div class="phone"><img src="img/app-plan.jpg" width="720" height="1452" alt="The plan editor with five rooms" loading="lazy"></div></figure>
+          <figure><div class="sheet"><img src="img/drawing-plan.png" width="1400" height="1379" alt="The floor plan drawing Squarely makes, with room sizes and overall dimensions" loading="lazy"></div></figure>
+          <figure><div class="phone"><img src="img/app-walk.jpg" width="720" height="1452" alt="Walking through the living room in 3D" loading="lazy"></div></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tint">
+    <div class="wrap">
+      <div class="gal-head reveal">
+        <div>
+          <h2>Real rooms.<br><span class="soft">Real sizes.</span></h2>
+          <p class="lead">Everything here comes from the same measured home, straight off the phone.</p>
+        </div>
+        <div class="arrows">
+          <button type="button" id="prev" aria-label="Previous"><i class="ph ph-arrow-left"></i></button>
+          <button type="button" id="next" class="dark" aria-label="Next"><i class="ph ph-arrow-right"></i></button>
+        </div>
+      </div>
+      <div class="gallery" id="gallery">
+        <figure><div class="ph"><img src="img/house-evening.jpg" width="900" height="900" alt="The home in 3D in the evening, lit by its ceiling lights" loading="lazy"></div><figcaption>The whole home, by evening light.</figcaption></figure>
+        <figure><div class="ph"><img src="img/living-day.jpg" width="960" height="800" alt="Living room in daylight" loading="lazy"></div><figcaption>The living room, by day.</figcaption></figure>
+        <figure><div class="ph"><img src="img/living-evening.jpg" width="960" height="800" alt="The same living room in the evening" loading="lazy"></div><figcaption>And with the lights on.</figcaption></figure>
+        <figure><div class="ph contain"><img src="img/drawing-plan.png" width="1400" height="1379" alt="Floor plan drawing with room sizes" loading="lazy"></div><figcaption>A floor plan you can send.</figcaption></figure>
+        <figure><div class="ph"><img src="img/app-furnish.jpg" width="720" height="1452" alt="Furnishing the master bedroom" loading="lazy"></div><figcaption>Furniture at real sizes.</figcaption></figure>
+        <figure><div class="ph"><img src="img/app-elevation.jpg" width="720" height="1452" alt="An elevation of a living room wall with its window and door" loading="lazy"></div><figcaption>Every wall, drawn to size.</figcaption></figure>
+      </div>
+      <div class="progress"><b id="gprog"></b></div>
+    </div>
+  </section>
+
+  <section class="dark" id="drawings">
+    <div class="wrap">
+      <div class="dark-head reveal">
+        <div>
+          <h2>One visit.<br><span class="soft">Everyone gets what they need.</span></h2>
+          <p class="lead">The same measurements become the plan for your office, the 3D for your client and the sizes for your contractor.</p>
+        </div>
+        <a class="pill-link" href="#join"><img src="img/house-day.jpg" alt="" width="900" height="900">Join the founding designers <span class="chip"><i class="ph-bold ph-arrow-up-right"></i></span></a>
+      </div>
+      <div class="uses reveal">
+        <figure><div class="ph"><img src="img/app-plan.jpg" width="720" height="1452" alt="" loading="lazy"></div><h3>On site</h3><p>Measure and draw as you go.</p></figure>
+        <figure><div class="ph contain"><img src="img/drawing-plan.png" width="1400" height="1379" alt="" loading="lazy"></div><h3>At your desk</h3><p>PDF and DXF, ready to work on.</p></figure>
+        <figure><div class="ph"><img src="img/house-evening.jpg" width="900" height="900" alt="" loading="lazy"></div><h3>With your client</h3><p>Walk them through it in 3D.</p></figure>
+        <figure><div class="ph"><img src="img/app-elevation.jpg" width="720" height="1452" alt="" loading="lazy"></div><h3>With your contractor</h3><p>Every wall with its sizes.</p></figure>
+      </div>
+    </div>
+  </section>
+
+  <div class="principle reveal">
+    <div class="wrap">
+      <blockquote>Every size on the drawing is one you measured.</blockquote>
+      <p>Squarely never guesses a wall. If something doesn't add up, it tells you on site.</p>
+    </div>
+  </div>
+
+  <section style="padding-top:0">
+    <div class="wrap sheet-wrap">
+      <div class="reveal">
+        <h2>Drawings that look<br><span class="soft">like you drew them.</span></h2>
+        <ul class="checks">
+          <li><i class="ph-fill ph-check-circle"></i><span>Floor plans with room sizes, wall thickness and overall dimensions</span></li>
+          <li><i class="ph-fill ph-check-circle"></i><span>An elevation of every wall, with doors, windows, beams and columns</span></li>
+          <li><i class="ph-fill ph-check-circle"></i><span>DXF for AutoCAD at 1:1 in mm, on clean layers</span></li>
+          <li><i class="ph-fill ph-check-circle"></i><span>Start from an architect's PDF: Squarely finds the rooms for you</span></li>
+        </ul>
+      </div>
+      <div class="drawing reveal">
+        <div class="art"><img src="img/drawing-plan.png" width="1400" height="1379" alt="Squarely floor plan drawing of a two-bedroom home" loading="lazy"></div>
+        <div class="titleblock">
+          <div><small>Project</small><strong>Showcase home</strong></div>
+          <div><small>Drawing</small><strong>Floor plan</strong></div>
+          <div><small>Units</small><strong>mm</strong></div>
+          <div><small>Made with</small><strong>Squarely</strong></div>
+          <div><small>Status</small><strong>Ready to send</strong></div>
+          <div><small>Sheet</small><span class="sheetno">A-101</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="founding" style="padding-top:0">
+    <div class="wrap">
+      <div class="founding reveal">
+        <div>
+          <h2>Become a<br><span class="soft">founding designer.</span></h2>
+          <p class="lead">Squarely is in early testing on Google Play. Join the waitlist and we'll add you to the test in the next group.</p>
+          <ul class="gets">
+            <li><span class="dot"><i class="ph-bold ph-key"></i></span>Early access on Google Play, free while we test</li>
+            <li><span class="dot"><i class="ph-bold ph-chat-circle"></i></span>A direct line to the person building it</li>
+            <li><span class="dot"><i class="ph-bold ph-tag"></i></span>A founding price when Squarely goes paid</li>
+          </ul>
+        </div>
+        <form id="join" class="form" novalidate>
+          <h3>Join the waitlist</h3>
+          <div class="field">
+            <label for="contact">Your Gmail address</label>
+            <input id="contact" name="contact" type="email" autocomplete="email" required placeholder="you@gmail.com">
+            <span class="help">The Google account on your Android phone. We use it to add you to the test on Google Play, and for launch news.</span>
+          </div>
+          <div class="field">
+            <label for="role">What do you do?</label>
+            <select id="role" name="role">
+              <option>Interior designer</option>
+              <option>Architect</option>
+              <option>Contractor or site manager</option>
+              <option>Something else</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="city">City and country <span style="font-weight:400;color:var(--ink-2)">(optional)</span></label>
+            <input id="city" name="city" autocomplete="address-level2">
+          </div>
+          <button class="btn" type="submit">Join the waitlist <span class="chip"><i class="ph-bold ph-arrow-up-right"></i></span></button>
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="questions" style="padding-top:0">
+    <div class="wrap faq-wrap">
+      <div class="reveal">
+        <h2>Questions<br><span class="soft">before you join.</span></h2>
+        <p class="lead">Something else? Write to <a class="link" href="mailto:support@bacaapp.com">support@bacaapp.com</a></p>
+      </div>
+      <div class="faq reveal">
+        <details open><summary>When can I use it? <span class="pm"><i class="ph-bold ph-plus"></i></span></summary><p>We add people from the waitlist to the test on Google Play in small groups. You'll get an email with a link to install Squarely. Everyone on the list also hears the day it opens to all.</p></details>
+        <details><summary>Why a Gmail address? <span class="pm"><i class="ph-bold ph-plus"></i></span></summary><p>Google Play's test works with Google accounts, so we need the one you use on your Android phone. We won't share it, and we only write about Squarely.</p></details>
+        <details><summary>Is there an iPhone version? <span class="pm"><i class="ph-bold ph-plus"></i></span></summary><p>Not yet. Squarely is Android first. Join the waitlist and you'll hear if an iPhone version is coming.</p></details>
+        <details><summary>Do I need internet on site? <span class="pm"><i class="ph-bold ph-plus"></i></span></summary><p>No. Measuring, drawing, 3D and exports all work with no signal.</p></details>
+        <details><summary>Where are my projects kept? <span class="pm"><i class="ph-bold ph-plus"></i></span></summary><p>On your phone. There's no account, and nothing is sent anywhere unless you share a drawing yourself.</p></details>
+        <details><summary>What will it cost? <span class="pm"><i class="ph-bold ph-plus"></i></span></summary><p>It's free while we test. Founding designers get a special price when paid plans start.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="finale reveal">
+      <img src="img/house-evening.jpg" width="900" height="900" alt="" loading="lazy">
+      <div class="inner">
+        <h2>Measure it once.</h2>
+        <div class="row">
+          <a class="btn light" href="#join">Join the waitlist <span class="chip"><i class="ph-bold ph-arrow-up-right"></i></span></a>
+          <span>Free while we test.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <h2>Measure the room.<br><span class="soft">Walk through it in 3D.</span></h2>
+      <div class="cols">
+        <div><h4>Squarely</h4><a href="#how">How it works</a><a href="#drawings">Drawings</a><a href="#founding">Founding designers</a></div>
+        <div><h4>Help</h4><a href="#questions">Questions</a><a href="mailto:support@bacaapp.com">Contact</a><a href="https://samuelsathwik.github.io/squarely-privacy/">Privacy</a></div>
+      </div>
+    </div>
+    <div class="legal"><span>Squarely. Measure, draw, design.</span><span>In early testing on Android</span></div>
+  </div>
+</footer>
+
+<script>
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Hero: where you start changes the first card and the line under the headline.
+  const starts = {
+    site: { sub: "Measure wall by wall on your phone. Leave the site with the floor plan, elevations and a 3D walkthrough.", img: "img/app-plan.jpg", cap: "Measure the site", alt: "A two-bedroom home drawn in Squarely, furnished room by room" },
+    pdf: { sub: "Import the architect's PDF. Squarely finds the rooms, you check them on site, then walk through it in 3D.", img: "img/pdf-rooms.jpg", cap: "Rooms found on the PDF", alt: "Rooms Squarely found on an imported PDF floor plan" },
+  };
+  document.querySelectorAll(".toggle button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".toggle button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    const s = starts[b.dataset.start];
+    document.getElementById("hero-sub").textContent = s.sub;
+    const img = document.getElementById("hero-first");
+    img.src = s.img; img.alt = s.alt;
+    document.getElementById("hero-first-cap").textContent = s.cap;
+  }));
+
+  // Steps: tap one, or let them play through, each with its bar filling.
+  const tabs = [...document.querySelectorAll(".tab")];
+  const figs = [...document.querySelectorAll(".stage figure")];
+  let step = 0, t0 = performance.now(), timer = null;
+  const SPAN = 6000;
+  function show(i) {
+    step = i; t0 = performance.now();
+    tabs.forEach((t, k) => { t.setAttribute("aria-selected", String(k === i)); t.querySelector(".bar b").style.width = k < i ? "100%" : "0"; });
+    figs.forEach((f, k) => f.classList.toggle("on", k === i));
+  }
+  tabs.forEach((t, k) => t.addEventListener("click", () => show(k)));
+  function tick(now) {
+    const p = Math.min(1, (now - t0) / SPAN);
+    tabs[step].querySelector(".bar b").style.width = (p * 100) + "%";
+    if (p >= 1) show((step + 1) % tabs.length);
+    timer = requestAnimationFrame(tick);
+  }
+  if (!still) {
+    const panel = document.querySelector(".panel");
+    new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !timer) { t0 = performance.now(); timer = requestAnimationFrame(tick); }
+      else if (!e.isIntersecting && timer) { cancelAnimationFrame(timer); timer = null; }
+    }, { threshold: 0.3 }).observe(panel);
+  } else tabs.forEach((t) => t.querySelector(".bar b").style.width = "100%");
+
+  // Gallery: arrows scroll by one card; the bar shows how far along you are.
+  const gal = document.getElementById("gallery"), gprog = document.getElementById("gprog");
+  const by = () => gal.querySelector("figure").getBoundingClientRect().width + 20;
+  document.getElementById("next").onclick = () => gal.scrollBy({ left: by(), behavior: still ? "auto" : "smooth" });
+  document.getElementById("prev").onclick = () => gal.scrollBy({ left: -by(), behavior: still ? "auto" : "smooth" });
+  const mark = () => {
+    const max = gal.scrollWidth - gal.clientWidth;
+    const shown = gal.clientWidth / gal.scrollWidth;
+    gprog.style.width = Math.max(shown, max > 0 ? shown + (1 - shown) * gal.scrollLeft / max : 1) * 100 + "%";
+  };
+  gal.addEventListener("scroll", mark, { passive: true }); addEventListener("resize", mark); mark();
+
+  // Sections ease in as they arrive.
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: 0.12 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  // Where sign-ups go: a Google Form. Set FORM.action to the form's address ending in /formResponse
+  // and each field to that question's entry id (entry.123...). Until then, the form says so rather
+  // than pretending to save.
+  const FORM = { action: "", contact: "", role: "", city: "" };
+  const form = document.getElementById("join"), status = document.getElementById("status");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const contact = form.contact.value.trim();
+    status.className = "status";
+    if (!/^\S+@\S+\.\S+$/.test(contact)) {
+      status.classList.add("err"); status.textContent = "Please enter your Gmail address, the one on your Android phone."; form.contact.focus(); return;
+    }
+    if (!FORM.action) { status.classList.add("err"); status.textContent = "Sign-ups open very soon. Meanwhile, write to support@bacaapp.com."; return; }
+    const data = new FormData();
+    data.append(FORM.contact, contact);
+    if (FORM.role) data.append(FORM.role, form.role.value);
+    if (FORM.city && form.city.value.trim()) data.append(FORM.city, form.city.value.trim());
+    const button = form.querySelector("button"); button.disabled = true; status.textContent = "Adding you…";
+    try {
+      // Google Forms doesn't answer cross-site requests, so the reply can't be read; a sent request is a saved answer.
+      await fetch(FORM.action, { method: "POST", mode: "no-cors", body: data });
+      status.classList.add("ok"); status.textContent = "You're on the list. We'll email you when your place in the test is ready."; form.reset();
+    } catch { status.classList.add("err"); status.textContent = "That didn't go through. Check your connection and try again."; }
+    finally { button.disabled = false; }
+  });
+</script>
+</body>
+</html>
